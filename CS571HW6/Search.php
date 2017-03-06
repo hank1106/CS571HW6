@@ -48,6 +48,7 @@
 				width:598px;
 				margin: 0 auto;
 				border: 2px solid #CCCCCC;
+				margin-bottom: 8px;
 			}
 			.messageresult
 			{
@@ -94,6 +95,7 @@
     	document.getElementById("type").value = "user";
     	document.getElementById("location").value = "";
     	document.getElementById("distance").value = "";
+    	document.getElementById('place').style.visibility = "hidden";
 	}
 	function showalbums()
 	{
@@ -101,6 +103,7 @@
 		if(document.getElementById("albumresult").style.display=="none")
 		{
 			document.getElementById("albumresult").style.display = "block";
+			document.getElementById("messageresult").style.display = "none";
 		}
 		else if (document.getElementById("albumresult").style.display=="block")
 		{
@@ -109,14 +112,15 @@
 		else
 		{
 			document.getElementById("albumresult").style.display = "block";
+			document.getElementById("messageresult").style.display = "none";
 		}
 	}
 	function showmessages()
 	{
-		
 		if(document.getElementById("messageresult").style.display=="none")
 		{
 			document.getElementById("messageresult").style.display = "block";
+			document.getElementById("albumresult").style.display = "none";
 		}
 		else if (document.getElementById("messageresult").style.display=="block")
 		{
@@ -125,6 +129,7 @@
 		else
 		{
 			document.getElementById("messageresult").style.display = "block";
+			document.getElementById("albumresult").style.display = "none";
 		}
 	}
 	function showphotos(idname)
@@ -154,21 +159,39 @@
 			document.getElementById('place').style.visibility = "hidden";
 		}
 	}
+	function validinput()
+	{
+		if(document.getElementById('type').value == 'place')
+		{
+			if(!document.getElementById('location').value)
+			{
+				alert("Location field is empty!")
+				return false;
+			}
+			if(!document.getElementById('distance').value)
+			{
+				alert("Distance field is empty!")
+				return false;
+			}
+		}
+		return true;
+
+	}
 </script>
 	<body>
 		<div class="header">
 			<div class="title">Facebook Search</div>
-			<form action='/index.php' method='get'>
+			<form action='/Search.php' method='get' onsubmit="return validinput();">
 				&nbsp; 
   				Keyword <input type='text' name='keyword' id='keyword' required='required' value='<?php if (isset($_GET["keyword"])){echo $_GET["keyword"]; }  ?>'>
   				<br>
   				&nbsp; Type: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
   				<select name='type' id='type' style="margin-top: 1px;" onchange="showplace(this.value);">
   					<option value='user' <?php if (isset($_GET['type'])) {if (strcmp($_GET['type'], 'user')==0){echo 'selected';}} ?> >Users</option>
-  					<option value='page' <?php if (isset($_GET['type'])) {if (strcmp($_GET['type'], 'page')==0){echo 'selected';}} ?>>page</option>
-  					<option value='event' <?php if (isset($_GET['type'])) {if (strcmp($_GET['type'], 'event')==0){echo 'selected';}} ?>>event</option>
-  					<option value='group' <?php if (isset($_GET['type'])) {if (strcmp($_GET['type'], 'group')==0){echo 'selected';}} ?>>group</option>
-  					<option value='place' <?php if (isset($_GET['type'])) {if (strcmp($_GET['type'], 'place')==0){echo 'selected';}} ?>>place</option>
+  					<option value='page' <?php if (isset($_GET['type'])) {if (strcmp($_GET['type'], 'page')==0){echo 'selected';}} ?>>Pages</option>
+  					<option value='event' <?php if (isset($_GET['type'])) {if (strcmp($_GET['type'], 'event')==0){echo 'selected';}} ?>>Events</option>
+  					<option value='group' <?php if (isset($_GET['type'])) {if (strcmp($_GET['type'], 'group')==0){echo 'selected';}} ?>>Groups</option>
+  					<option value='place' <?php if (isset($_GET['type'])) {if (strcmp($_GET['type'], 'place')==0){echo 'selected';}} ?>>Places</option>
 				</select>
 				<br>
 				&nbsp;
@@ -217,7 +240,42 @@
 								</a>
 							</td>";
 					echo "<td>".$data[$i]['name']."</td>";
-					echo "<td><a href='/index.php?id=".$data[$i]['id']."'>Details</a></td>";
+					echo "<td><a href='/Search.php?id=".$data[$i]['id']."'>Details</a></td>";
+					echo "</tr>";
+				}
+				echo "</table>";	
+			}
+			else
+			{
+				echo "<div class='nothingfound'>No Records have been found</div><br>";
+			}
+		}
+		else if (strcmp($_GET["type"], "event")==0)
+		{
+			$_GET["keyword"] = str_replace(" ","%20",$_GET["keyword"]);
+			$feedurl = "https://graph.facebook.com/v2.8/search?q=".$_GET["keyword"]."&type=event&fields=id,name,picture.width(700).height(700),place&access_token=".$accesstoken;
+			$feed = file_get_contents($feedurl);
+			$jsondecoded = json_decode($feed,true);
+			$data = $jsondecoded["data"];
+			if(sizeof($data)!=0)
+			{
+				echo "<table style='width:70%;' align='center'>
+		  			<tr style='background-color:#F3F3F3;'>
+        				<td>Profile Photo</td>
+        				<td>Name</td>
+        				<td>Place</td>
+      				</tr>
+				";
+				for($i=0; $i < sizeof($data); $i++)
+				{
+					echo "<tr>
+							<td>
+								<a href='".$data[$i]['picture']['data']['url']."'>
+						 			<img src='".$data[$i]['picture']['data']['url']."' height='30' width='40'>
+								</a>
+							</td>";
+					echo "<td>".$data[$i]['name']."</td>";
+					echo "<td>".$data[$i]['place']['name']."</td>";
 					echo "</tr>";
 				}
 				echo "</table>";	
@@ -252,7 +310,7 @@
 								</a>
 							</td>";
 					echo "<td>".$data[$i]['name']."</td>";
-					echo "<td><a href='/index.php?id=".$data[$i]['id']."'>Details</a></td>";
+					echo "<td><a href='/Search.php?id=".$data[$i]['id']."'>Details</a></td>";
 					echo "</tr>";
 				}
 				echo "</table>";	
@@ -276,11 +334,18 @@
 			$albums = $jsondecoded["albums"]["data"];
 			for($i=0; $i < sizeof($albums); $i++)
 			{
-				echo "<div class='borderbottom'><a onclick=\"showphotos('".str_replace(' ','-',$albums[$i]['name'])."')\" href='#'>".$albums[$i]['name']."</a><br>";
-				echo "<div id='".str_replace(" ","-",$albums[$i]['name'])."' style='display:none;'>";
-				for($j=0; $j < sizeof($albums[$i]['photos']['data']); $j++)
+				if (isset($albums[$i]['photos']['data']))
 				{
-					echo "<img src='".$albums[$i]['photos']['data'][$j]['picture']."' height='50' width='50'>&nbsp;&nbsp;&nbsp;";
+					echo "<div class='borderbottom'><a onclick=\"showphotos('".str_replace(' ','-',$albums[$i]['name'])."')\" href='#'>".$albums[$i]['name']."</a><br>";
+					echo "<div id='".str_replace(" ","-",$albums[$i]['name'])."' style='display:none;'>";
+					for($j=0; $j < sizeof($albums[$i]['photos']['data']); $j++)
+					{
+						echo "<img src='".$albums[$i]['photos']['data'][$j]['picture']."' height='50' width='50'>&nbsp;&nbsp;&nbsp;";
+					}
+				}
+				else
+				{
+					echo "<div class='borderbottom' style='font-size:15px;'><a>".$albums[$i]['name']."</a><br><div>";
 				}
 				echo "</div></div>";
 			}
