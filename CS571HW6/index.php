@@ -10,6 +10,8 @@
 				width:500px;
 				margin: 0 auto;
 				font-size: 15px;
+				border: 2px solid #D4D4D4;
+				margin-bottom: 20px;
 			}
 			.title
 			{
@@ -58,15 +60,40 @@
 				border-bottom: 1px solid #CCCCCC;
 				padding: 1px;
 			}
-			a:visited{
+			.detailsheader a:visited,.albumresult a:visited{
   				color:blue;
+			}
+			.nothingfound
+			{
+				width:600px;
+				background-color: #F3F3F3;
+				margin-top:8px;
+				border: 2px solid #D4D4D4;
+				text-align: center;
+				padding:1px;
+				font-size: 15px;
+				margin:0 auto;
+			}
+			.place
+			{
+				visibility: hidden;
+				margin-top: -15px;
+				margin-left:8px;
 			}
 		</style>
 	</head>
 	<script>
+	window.onload = function() {
+  		if(document.getElementById("type").value=='place')
+		{
+			document.getElementById('place').style.visibility = "visible";
+		}	
+	};
 	function resetform() {
     	document.getElementById("keyword").value = "";
     	document.getElementById("type").value = "user";
+    	document.getElementById("location").value = "";
+    	document.getElementById("distance").value = "";
 	}
 	function showalbums()
 	{
@@ -116,22 +143,40 @@
 			document.getElementById(idname).style.display = "block";
 		}
 	}
+	function showplace(value)
+	{
+		if(value=='place')
+		{
+			document.getElementById('place').style.visibility = "visible";
+		}
+		else
+		{
+			document.getElementById('place').style.visibility = "hidden";
+		}
+	}
 </script>
 	<body>
 		<div class="header">
 			<div class="title">Facebook Search</div>
 			<form action='/index.php' method='get'>
-  				&nbsp; Keyword <input type='text' name='keyword' id='keyword' value='<?php if (isset($_GET["keyword"])){echo $_GET["keyword"]; }  ?>'>
-  				<br><br>
+				&nbsp; 
+  				Keyword <input type='text' name='keyword' id='keyword' required='required' value='<?php if (isset($_GET["keyword"])){echo $_GET["keyword"]; }  ?>'>
+  				<br>
   				&nbsp; Type: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  				<select name='type' id='type' value='<?php if (isset($_GET["type"])){echo $_GET["type"]; }  ?>'>
+  				<select name='type' id='type' style="margin-top: 1px;" onchange="showplace(this.value);">
   					<option value='user' <?php if (isset($_GET['type'])) {if (strcmp($_GET['type'], 'user')==0){echo 'selected';}} ?> >Users</option>
   					<option value='page' <?php if (isset($_GET['type'])) {if (strcmp($_GET['type'], 'page')==0){echo 'selected';}} ?>>page</option>
   					<option value='event' <?php if (isset($_GET['type'])) {if (strcmp($_GET['type'], 'event')==0){echo 'selected';}} ?>>event</option>
   					<option value='group' <?php if (isset($_GET['type'])) {if (strcmp($_GET['type'], 'group')==0){echo 'selected';}} ?>>group</option>
   					<option value='place' <?php if (isset($_GET['type'])) {if (strcmp($_GET['type'], 'place')==0){echo 'selected';}} ?>>place</option>
 				</select>
-				<br><br>
+				<br>
+				&nbsp;
+				<div class="place" id="place">
+					Location <input type='text' name='location' id='location' value='<?php if (isset($_GET["location"])){echo $_GET["location"]; }  ?>'>
+					Distance <input type='text' name='distance' id='distance' value='<?php if (isset($_GET["distance"])){echo $_GET["distance"]; }  ?>'>
+				</div>
+				<br>
   				<input type='submit' value='Search' class="button">
   				<input type='button' value='Clear' onclick='resetform()'>
 			</form> 
@@ -142,31 +187,81 @@
 	$accesstoken = "EAAFgkMau1f8BAD02HfQNS9t7E6qp6Mw7WYrplAapbqZCrJ7xFSxpZAtpSahbTbXWxYCcUoohPmISw1diiDZBaaPZCQbxXgcSNLNbersPBBYMsZCmB0HhFz196psfZBKWMDXmGw1Kj7mtqrtiN2hXWW0HZBScPZBXpfkZD";
 	if(isset($_GET["keyword"]))
 	{
-		$_GET["keyword"] = str_replace(" ","%20",$_GET["keyword"]);
-		$feedurl = "https://graph.facebook.com/v2.8/search?q=".$_GET["keyword"]."&type=".$_GET["type"]."&fields=id,name,picture.width(700).height(700)&access_token=".$accesstoken;
-		$feed = file_get_contents($feedurl);
-		$jsondecoded = json_decode($feed,true);
-		$data = $jsondecoded["data"];
-		echo "<table style='width:70%;' align='center'>
-		  		<tr style='background-color:#F3F3F3;'>
-        			<td>Profile Photo</td>
-        			<td>Name</td>
-        			<td>Details</td>
-      			</tr>
-		";
-		for($i=0; $i < sizeof($data); $i++)
+		if(strcmp($_GET["type"], "place")==0)
 		{
-			echo "<tr>
-					<td>
-						<a href='".$data[$i]['picture']['data']['url']."'>
-						 <img src='".$data[$i]['picture']['data']['url']."' height='30' width='40'>
-						</a>
-					</td>";
-			echo "<td>".$data[$i]['name']."</td>";
-			echo "<td><a href='/index.php?id=".$data[$i]['id']."'>Details</a></td>";
-			echo "</tr>";
+			$_GET["location"] = str_replace(" ","+",$_GET["location"]);
+			$googlefeedurl = "https://maps.googleapis.com/maps/api/geocode/json?address=".$_GET["location"]."&key=AIzaSyAUh-un_GztUGhjkS43DaNbztCsf3wAMtw";
+			$googlefeed = file_get_contents($googlefeedurl);
+			$googlejsondecoded = json_decode($googlefeed,true);
+			$lat = $googlejsondecoded["results"][0]["geometry"]['location']['lat'];
+			$lng = $googlejsondecoded["results"][0]["geometry"]['location']['lng'];
+			$fburl = "https://graph.facebook.com/v2.8/search?q=".$_GET["keyword"]."&type=place&center=".$lat.",".$lng."&distance=".$_GET["distance"]."&fields=id,name,picture.width(700).height(700)&access_token=".$accesstoken;
+			$fbfeed = file_get_contents($fburl);
+			$fbjsondecoded = json_decode($fbfeed,true);
+			$data = $fbjsondecoded["data"];
+			if(sizeof($data)!=0)
+			{
+				echo "<table style='width:70%;' align='center'>
+		  			<tr style='background-color:#F3F3F3;'>
+        				<td>Profile Photo</td>
+        				<td>Name</td>
+        				<td>Details</td>
+      				</tr>
+				";
+				for($i=0; $i < sizeof($data); $i++)
+				{
+					echo "<tr>
+							<td>
+								<a href='".$data[$i]['picture']['data']['url']."'>
+						 			<img src='".$data[$i]['picture']['data']['url']."' height='30' width='40'>
+								</a>
+							</td>";
+					echo "<td>".$data[$i]['name']."</td>";
+					echo "<td><a href='/index.php?id=".$data[$i]['id']."'>Details</a></td>";
+					echo "</tr>";
+				}
+				echo "</table>";	
+			}
+			else
+			{
+				echo "<div class='nothingfound'>No Records has been found</div><br>";
+			}
 		}
-		echo "</table>";	
+		else
+		{
+			$_GET["keyword"] = str_replace(" ","%20",$_GET["keyword"]);
+			$feedurl = "https://graph.facebook.com/v2.8/search?q=".$_GET["keyword"]."&type=".$_GET["type"]."&fields=id,name,picture.width(700).height(700)&access_token=".$accesstoken;
+			$feed = file_get_contents($feedurl);
+			$jsondecoded = json_decode($feed,true);
+			$data = $jsondecoded["data"];
+			if(sizeof($data)!=0)
+			{
+				echo "<table style='width:70%;' align='center'>
+		  			<tr style='background-color:#F3F3F3;'>
+        				<td>Profile Photo</td>
+        				<td>Name</td>
+        				<td>Details</td>
+      				</tr>
+				";
+				for($i=0; $i < sizeof($data); $i++)
+				{
+					echo "<tr>
+							<td>
+								<a href='".$data[$i]['picture']['data']['url']."'>
+						 			<img src='".$data[$i]['picture']['data']['url']."' height='30' width='40'>
+								</a>
+							</td>";
+					echo "<td>".$data[$i]['name']."</td>";
+					echo "<td><a href='/index.php?id=".$data[$i]['id']."'>Details</a></td>";
+					echo "</tr>";
+				}
+				echo "</table>";	
+			}
+			else
+			{
+				echo "<div class='nothingfound'>No Records has been found</div><br>";
+			}
+		}
 	}
 
 	if(isset($_GET["id"]))
@@ -191,6 +286,10 @@
 			}
 			echo "</div>";
 		}
+		else
+		{
+			echo "<div class='nothingfound'>No Albums has been found</div><br>";
+		}
 		if(isset($jsondecoded["posts"]["data"]))
 		{
 			$posts = $jsondecoded["posts"]["data"];
@@ -205,6 +304,10 @@
 				}
 			}
 			echo "</div>";
+		}
+		else
+		{
+			echo "<div class='nothingfound'>No Posts has been found</div><br>";
 		}
 	}
 ?>
