@@ -1,5 +1,11 @@
 <?php 
 	require_once __DIR__ . '/php-graph-sdk-5.0.0/src/Facebook/autoload.php';
+	$fb = new Facebook\Facebook([
+  		'default_graph_version' => 'v2.8',
+  		'app_id' => '387649901614591',
+  		'app_secret'=> 'e16fffbb0fd0f32fb153b0210c591f24',
+  		'default_access_token' => 'EAAFgkMau1f8BAD02HfQNS9t7E6qp6Mw7WYrplAapbqZCrJ7xFSxpZAtpSahbTbXWxYCcUoohPmISw1diiDZBaaPZCQbxXgcSNLNbersPBBYMsZCmB0HhFz196psfZBKWMDXmGw1Kj7mtqrtiN2hXWW0HZBScPZBXpfkZD',
+	]);
 ?> 
 <html>
 	<head>
@@ -173,9 +179,18 @@
 				alert("Distance field is empty!")
 				return false;
 			}
+			if(!document.getElementById('distance').value.match(/^\d+/))
+			{
+				alert("Distance has to be a numeric value!");
+				return false;
+			}
 		}
 		return true;
 
+	}
+	function opennewtab(url)
+	{
+		window.open().document.write("<img src='"+url+"'>");
 	}
 </script>
 	<body>
@@ -208,7 +223,7 @@
 </html>
 <?php
 	$accesstoken = "EAAFgkMau1f8BAD02HfQNS9t7E6qp6Mw7WYrplAapbqZCrJ7xFSxpZAtpSahbTbXWxYCcUoohPmISw1diiDZBaaPZCQbxXgcSNLNbersPBBYMsZCmB0HhFz196psfZBKWMDXmGw1Kj7mtqrtiN2hXWW0HZBScPZBXpfkZD";
-	if(isset($_GET["keyword"]))
+	if(!isset($_GET["id"])&&isset($_GET["keyword"]))
 	{
 		if(strcmp($_GET["type"], "place")==0)
 		{
@@ -216,46 +231,66 @@
 			$googlefeedurl = "https://maps.googleapis.com/maps/api/geocode/json?address=".$_GET["location"]."&key=AIzaSyAUh-un_GztUGhjkS43DaNbztCsf3wAMtw";
 			$googlefeed = file_get_contents($googlefeedurl);
 			$googlejsondecoded = json_decode($googlefeed,true);
-			$lat = $googlejsondecoded["results"][0]["geometry"]['location']['lat'];
-			$lng = $googlejsondecoded["results"][0]["geometry"]['location']['lng'];
-			$fburl = "https://graph.facebook.com/v2.8/search?q=".$_GET["keyword"]."&type=place&center=".$lat.",".$lng."&distance=".$_GET["distance"]."&fields=id,name,picture.width(700).height(700)&access_token=".$accesstoken;
-			$fbfeed = file_get_contents($fburl);
-			$fbjsondecoded = json_decode($fbfeed,true);
-			$data = $fbjsondecoded["data"];
-			if(sizeof($data)!=0)
+			if(sizeof($googlejsondecoded["results"])>0)
 			{
-				echo "<table style='width:70%;' align='center'>
-		  			<tr style='background-color:#F3F3F3;'>
-        				<td>Profile Photo</td>
-        				<td>Name</td>
-        				<td>Details</td>
-      				</tr>
-				";
-				for($i=0; $i < sizeof($data); $i++)
-				{
-					echo "<tr>
-							<td>
-								<a href='".$data[$i]['picture']['data']['url']."'>
-						 			<img src='".$data[$i]['picture']['data']['url']."' height='30' width='40'>
-								</a>
-							</td>";
-					echo "<td>".$data[$i]['name']."</td>";
-					echo "<td><a href='/Search.php?id=".$data[$i]['id']."'>Details</a></td>";
-					echo "</tr>";
+				$lat = $googlejsondecoded["results"][0]["geometry"]['location']['lat'];
+				$lng = $googlejsondecoded["results"][0]["geometry"]['location']['lng'];
+				try{
+					$feed = $fb->get("search?q=".$_GET["keyword"]."&type=".$_GET["type"]."&center=".$lat.",".$lng."&distance=".$_GET["distance"]."&fields=id,name,picture.width(700).height(700)");
 				}
-				echo "</table>";	
+				catch(Facebook\Exceptions\FacebookSDKException $e)
+				{
+					echo $e->getMessage();
+					exit;
+				}
+				$jsondecoded = $feed->getDecodedBody();
+				$data = $jsondecoded["data"];
+				if(sizeof($data)!=0)
+				{
+					echo "<table style='width:70%;' align='center'>
+		  				<tr style='background-color:#F3F3F3;'>
+        					<td>Profile Photo</td>
+        					<td>Name</td>
+        					<td>Details</td>
+      					</tr>
+					";
+					for($i=0; $i < sizeof($data); $i++)
+					{
+						echo "<tr>
+								<td>
+									<a href='#' onclick=\"opennewtab('".$data[$i]['picture']['data']['url']."')\">
+						 				<img src='".$data[$i]['picture']['data']['url']."' height='30' width='40'>
+									</a>
+								</td>";
+						echo "<td>".$data[$i]['name']."</td>";
+						echo "<td><a href='/Search.php?id=".$data[$i]['id']."&keyword=".$_GET["keyword"]."&type=".$_GET["type"]."&location=".$_GET["location"]."&distance=".$_GET["distance"]."'>Details</a></td>";
+						echo "</tr>";
+					}
+					echo "</table>";	
+				}
+				else
+				{
+					echo "<div class='nothingfound'>No Records have been found</div><br>";
+				}
 			}
 			else
 			{
-				echo "<div class='nothingfound'>No Records have been found</div><br>";
+				echo "<div class='nothingfound'>Address invalid</div><br>";
 			}
+			
 		}
 		else if (strcmp($_GET["type"], "event")==0)
 		{
 			$_GET["keyword"] = str_replace(" ","%20",$_GET["keyword"]);
-			$feedurl = "https://graph.facebook.com/v2.8/search?q=".$_GET["keyword"]."&type=event&fields=id,name,picture.width(700).height(700),place&access_token=".$accesstoken;
-			$feed = file_get_contents($feedurl);
-			$jsondecoded = json_decode($feed,true);
+			try{
+				$feed = $fb->get("search?q=".$_GET["keyword"]."&type=event&fields=id,name,picture.width(700).height(700),place");
+			}
+			catch(Facebook\Exceptions\FacebookSDKException $e)
+			{
+				echo $e->getMessage();
+				exit;
+			}
+			$jsondecoded = $feed->getDecodedBody();
 			$data = $jsondecoded["data"];
 			if(sizeof($data)!=0)
 			{
@@ -270,7 +305,7 @@
 				{
 					echo "<tr>
 							<td>
-								<a href='".$data[$i]['picture']['data']['url']."'>
+								<a href='#' onclick=\"opennewtab('".$data[$i]['picture']['data']['url']."')\">
 						 			<img src='".$data[$i]['picture']['data']['url']."' height='30' width='40'>
 								</a>
 							</td>";
@@ -288,9 +323,15 @@
 		else
 		{
 			$_GET["keyword"] = str_replace(" ","%20",$_GET["keyword"]);
-			$feedurl = "https://graph.facebook.com/v2.8/search?q=".$_GET["keyword"]."&type=".$_GET["type"]."&fields=id,name,picture.width(700).height(700)&access_token=".$accesstoken;
-			$feed = file_get_contents($feedurl);
-			$jsondecoded = json_decode($feed,true);
+			try{
+				$feed = $fb->get("search?q=".$_GET["keyword"]."&type=".$_GET["type"]."&fields=id,name,picture.width(700).height(700)");
+			}
+			catch(Facebook\Exceptions\FacebookSDKException $e)
+			{
+				echo $e->getMessage();
+				exit;
+			}
+			$jsondecoded = $feed->getDecodedBody();
 			$data = $jsondecoded["data"];
 			if(sizeof($data)!=0)
 			{
@@ -305,12 +346,12 @@
 				{
 					echo "<tr>
 							<td>
-								<a href='".$data[$i]['picture']['data']['url']."'>
+								<a href='#' onclick=\"opennewtab('".$data[$i]['picture']['data']['url']."')\">
 						 			<img src='".$data[$i]['picture']['data']['url']."' height='30' width='40'>
 								</a>
 							</td>";
 					echo "<td>".$data[$i]['name']."</td>";
-					echo "<td><a href='/Search.php?id=".$data[$i]['id']."'>Details</a></td>";
+					echo "<td><a href='/Search.php?id=".$data[$i]['id']."&keyword=".$_GET["keyword"]."&type=".$_GET["type"]."'>Details</a></td>";
 					echo "</tr>";
 				}
 				echo "</table>";	
@@ -324,9 +365,15 @@
 
 	if(isset($_GET["id"]))
 	{
-		$detailfeedurl = "https://graph.facebook.com/v2.8/".$_GET["id"]."?fields=id,name,picture.width(700).height(700),albums.limit(5){name,photos.limit(2){name,picture}},posts.limit(5)&access_token=".$accesstoken;
-		$detailfeed = file_get_contents($detailfeedurl);
-		$jsondecoded = json_decode($detailfeed,true);
+		try{
+			$feed = $fb->get($_GET["id"]."?fields=id,name,picture.width(700).height(700),albums.limit(5){name,photos.limit(2){name,picture}},posts.limit(5)");
+		}
+		catch(Facebook\Exceptions\FacebookSDKException $e)
+		{
+			echo $e->getMessage();
+			exit;
+		}
+		$jsondecoded = $feed->getDecodedBody();
 		if(isset($jsondecoded["albums"]["data"]))
 		{
 			echo "<div class='detailsheader'><a onclick='showalbums()' href='#'>Albums</a></div><br>";
@@ -340,12 +387,14 @@
 					echo "<div id='".str_replace(" ","-",$albums[$i]['name'])."' style='display:none;'>";
 					for($j=0; $j < sizeof($albums[$i]['photos']['data']); $j++)
 					{
-						echo "<img src='".$albums[$i]['photos']['data'][$j]['picture']."' height='50' width='50'>&nbsp;&nbsp;&nbsp;";
+						$url = 'https://graph.facebook.com/v2.8/'.$albums[$i]['photos']['data'][$j]['id'].'/picture?access_token='.$accesstoken;
+						echo "<a href='#' onclick=\"opennewtab('".$url."')\">";
+						echo "<img src='".$albums[$i]['photos']['data'][$j]['picture']."' height='50' width='50'>&nbsp;&nbsp;&nbsp;</a>";
 					}
 				}
 				else
 				{
-					echo "<div class='borderbottom' style='font-size:15px;'><a>".$albums[$i]['name']."</a><br><div>";
+					echo "<div class='borderbottom' style='font-size:15px;text-align:center;'><a>".$albums[$i]['name']."</a><br><div>";
 				}
 				echo "</div></div>";
 			}
