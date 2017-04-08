@@ -9,6 +9,7 @@
 ?> 
 <html>
 	<head>
+	<meta charset="UTF-8">
 		<style>
 			.header
 			{
@@ -97,11 +98,7 @@
 		}	
 	};
 	function resetform() {
-    	document.getElementById("keyword").value = "";
-    	document.getElementById("type").value = "user";
-    	document.getElementById("location").value = "";
-    	document.getElementById("distance").value = "";
-    	document.getElementById('place').style.visibility = "hidden";
+    	window.location = "http://cs-server.usc.edu:27190/Search.php";
 	}
 	function showalbums()
 	{
@@ -212,7 +209,7 @@
 				&nbsp;
 				<div class="place" id="place">
 					Location <input type='text' name='location' id='location' value='<?php if (isset($_GET["location"])){echo $_GET["location"]; }  ?>'>
-					Distance <input type='text' name='distance' id='distance' value='<?php if (isset($_GET["distance"])){echo $_GET["distance"]; }  ?>'>
+					Distance(meters) <input type='text' name='distance' id='distance' value='<?php if (isset($_GET["distance"])){echo $_GET["distance"]; }  ?>'>
 				</div>
 				<br>
   				<input type='submit' value='Search' class="button">
